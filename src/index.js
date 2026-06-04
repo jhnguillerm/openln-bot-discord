@@ -5,6 +5,8 @@ const path = require('path');
 
 dotenv.config();
 
+require('./server');
+
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
