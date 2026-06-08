@@ -36,7 +36,8 @@ async function handleMessage(message) {
     if (enrichedData.description) {
       descParts.push(enrichedData.description);
     }
-    embed.setDescription(descParts.length > 0 ? descParts.join('\n\n') : null);
+    descParts.push(`\`${url}\``);
+    embed.setDescription(descParts.join('\n\n'));
 
     if (enrichedData.image) {
       embed.setImage(enrichedData.image);
@@ -85,6 +86,12 @@ async function handleMessage(message) {
     components: [row],
     content: extraMessage,
   });
+
+  try {
+    await message.delete();
+  } catch {
+    // sin permiso para borrar, ignorar silenciosamente
+  }
 }
 
 module.exports = { handleMessage };
