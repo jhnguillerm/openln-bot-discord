@@ -1,3 +1,5 @@
+const { fetchWorkshopData, isWorkshopUrl } = require('./steamEnricher');
+
 const platforms = [
   {
     name: 'Steam',
@@ -7,6 +9,12 @@ const platforms = [
       return `steam://openurl/${encodeURIComponent(url)}`;
     },
     hasApp: true,
+    enrich: async (url) => {
+      if (isWorkshopUrl(url)) {
+        return await fetchWorkshopData(url);
+      }
+      return null;
+    },
   },
   {
     name: 'Epic Games',

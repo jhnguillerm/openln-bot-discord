@@ -17,11 +17,32 @@ async function handleMessage(message) {
 
   const platform = detectPlatform(url);
 
+  let enrichedData = null;
+  if (platform && platform.enrich) {
+    enrichedData = await platform.enrich(url);
+  }
+
   const embed = new EmbedBuilder()
     .setColor(platform ? platform.color : 0x5865F2)
-    .setTitle('🔗 Enlace detectado')
-    .setDescription(`\`${url}\``)
     .setTimestamp();
+
+  if (enrichedData) {
+    embed.setTitle(enrichedData.title || '🔗 Enlace detectado');
+    embed.setDescription(
+      [
+        enrichedData.description || '',
+        `\`${url}\``,
+      ]
+        .filter(Boolean)
+        .join('\n\n'),
+    );
+    if (enrichedData.image) {
+      embed.setImage(enrichedData.image);
+    }
+  } else {
+    embed.setTitle('🔗 Enlace detectado');
+    embed.setDescription(`\`${url}\``);
+  }
 
   const buttons = [
     new ButtonBuilder()
