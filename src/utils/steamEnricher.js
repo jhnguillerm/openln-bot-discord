@@ -9,21 +9,6 @@ function truncate(text, max) {
   return text.slice(0, max).replace(/\s+\S*$/, '') + '...';
 }
 
-function extractMetaTag(html, property) {
-  const regex = new RegExp(
-    `<meta\\s[^>]*property=["']${escapeRegExp(property)}["'][^>]*content=["']([^"']+)["']`,
-    'i',
-  );
-  const match = regex.exec(html);
-  if (match) return match[1];
-  const regexAlt = new RegExp(
-    `<meta\\s[^>]*content=["']([^"']+)["'][^>]*property=["']${escapeRegExp(property)}["']`,
-    'i',
-  );
-  const matchAlt = regexAlt.exec(html);
-  return matchAlt ? matchAlt[1] : null;
-}
-
 function escapeRegExp(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -40,6 +25,63 @@ function decodeHtmlEntities(text) {
     .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(dec));
 }
 
+function extractMetaTag(html, property) {
+  const patterns = [
+    new RegExp(
+      `<meta\\s[^>]*property=["']${escapeRegExp(property)}["'][^>]*content=["']([^"']+)["']`,
+      'i',
+    ),
+    new RegExp(
+      `<meta\\s[^>]*content=["']([^"']+)["'][^>]*property=["']${escapeRegExp(property)}["']`,
+      'i',
+    ),
+    new RegExp(
+      `<meta\\s[^>]*name=["']${escapeRegExp(property)}["'][^>]*content=["']([^"']+)["']`,
+      'i',
+    ),
+    new RegExp(
+      `<meta\\s[^>]*content=["']([^"']+)["'][^>]*name=["']${escapeRegExp(property)}["']`,
+      'i',
+    ),
+  ];
+  for (const regex of patterns) {
+    const match = regex.exec(html);
+    if (match) return match[1];
+  }
+  return null;
+}
+
+function extractTags(html) {
+  const tagRegex = /requiredtags(?:%5B%5D|\[\])=([^"&'\]>]+)/gi;
+  const tags = [];
+  let match;
+  while ((match = tagRegex.exec(html)) !== null) {
+    const tag = decodeHtmlEntities(match[1]);
+    if (tag && !tags.includes(tag)) {
+      tags.push(tag);
+    }
+  }
+  return tags.length > 0 ? tags : null;
+}
+
+function extractDescriptionFromBody(html) {
+  const patterns = [
+    /<div[^>]*class=["'][^"']*workshopItemDescription[^"']*["'][^>]*>([\s\S]*?)<\/div>/i,
+    /<div[^>]*class=["'][^"']*description[^"']*["'][^>]*>([\s\S]*?)<\/div>/i,
+  ];
+  for (const regex of patterns) {
+    const match = regex.exec(html);
+    if (match) {
+      const text = match[1]
+        .replace(/<[^>]+>/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (text.length > 20) return text;
+    }
+  }
+  return null;
+}
+
 async function fetchWorkshopData(url) {
   try {
     const response = await fetch(url, {
@@ -52,15 +94,24 @@ async function fetchWorkshopData(url) {
     const html = await response.text();
 
     const title = decodeHtmlEntities(extractMetaTag(html, 'og:title'));
-    const description = decodeHtmlEntities(extractMetaTag(html, 'og:description'));
-    const image = extractMetaTag(html, 'og:image');
 
-    if (!title && !description && !image) return null;
+    let description =
+      decodeHtmlEntities(extractMetaTag(html, 'og:description')) ||
+      decodeHtmlEntities(extractMetaTag(html, 'Description')) ||
+      decodeHtmlEntities(extractDescriptionFromBody(html));
+
+    if (description) description = truncate(description, MAX_DESC_LENGTH);
+
+    const image = extractMetaTag(html, 'og:image');
+    const tags = extractTags(html);
+
+    if (!title && !image) return null;
 
     return {
       title: title || null,
-      description: description ? truncate(description, MAX_DESC_LENGTH) : null,
+      description: description || null,
       image: image || null,
+      tags: tags || null,
     };
   } catch {
     return null;

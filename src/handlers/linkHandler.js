@@ -28,14 +28,16 @@ async function handleMessage(message) {
 
   if (enrichedData) {
     embed.setTitle(enrichedData.title || '🔗 Enlace detectado');
-    embed.setDescription(
-      [
-        enrichedData.description || '',
-        `\`${url}\``,
-      ]
-        .filter(Boolean)
-        .join('\n\n'),
-    );
+
+    const descParts = [];
+    if (enrichedData.tags && enrichedData.tags.length > 0) {
+      descParts.push(`📋 Tipo: ${enrichedData.tags.join(', ')}`);
+    }
+    if (enrichedData.description) {
+      descParts.push(enrichedData.description);
+    }
+    embed.setDescription(descParts.length > 0 ? descParts.join('\n\n') : null);
+
     if (enrichedData.image) {
       embed.setImage(enrichedData.image);
     }
